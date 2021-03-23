@@ -35,10 +35,12 @@ def getinfo(lis):
 
     #3.performance piece
     title = lis[11]
+    #Opus info
     if 'op' not in title.lower():
         if lis[13] != '':
             if 'op' not in lis[13].lower(): title += ' Op.' + lis[13]
             else: title += ' ' + lis[13]
+    #Movement info
     if 'no.' in title.lower() or 'mov' in title.lower() or 'mvt' in title.lower():
         title += ''
     else:
@@ -46,6 +48,7 @@ def getinfo(lis):
             if 'no' in lis[14].lower() or 'mov' in lis[14].lower() \
                     or 'mvt' in lis[14].lower(): title += ' ' + lis[14]
             else: title += ' Mvt.' + lis[14]
+    #Key info
     if lis[12] != '': title += ' in ' + lis[12]
     info.append(title)
 
@@ -90,10 +93,13 @@ def zoom_info(lis):
 
 
 def sort(lis):
+    #used bubble sort for simplicity
     for i in range(len(lis)-1):
         for j in range(i+1, len(lis)):
+            #compare age
             if lis[i][5] > lis[j][5]:
                 lis[i], lis[j] = lis[j], lis[i]
+            #if same age: compare submission time
             elif lis[i][5] == lis[j][5]:
                 date_time1, date_time2 = lis[i][6], lis[j][6]
                 timestamp1 = time.mktime(datetime.strptime(date_time1, "%Y-%m-%d %H:%M:%S").timetuple())
@@ -103,14 +109,16 @@ def sort(lis):
 
 def main():
 
-    service = build('sheets', 'v4', credentials=creds)
-
     # Call the Sheets API and get input
+    service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
+
+    #get input from web-flow sheet
     raw_input1 = sheet.values().get(spreadsheetId=Webflow_ID,
                                     range="Sheet1!A3:W12").execute()
     performer_info = raw_input1.get('values', [])
 
+    #get input from zoom link sheet
     raw_input2 = sheet.values().get(spreadsheetId=Zoom_links_ID,
                                     range="May 2021!A2:G9").execute()
     zoom_links = raw_input2.get('values', [])
@@ -144,8 +152,7 @@ def main():
     for i in range(1, 9):
         sort(master_list[i])
 
-    #add zoom links and titles, delete extra info
-
+    #delete extra info, add zoom links and titles
     for i in range(1, 9):
         for j in range(len(master_list[i])):
             temp = master_list[i][j]
@@ -153,36 +160,21 @@ def main():
         master_list[i].insert(0, zoom_links[i-1])
         master_list[i].insert(1, title)
 
-
-    #delete extra info
+    #delete extra info(not needed currently)
     # service.spreadsheets().values().batchClear(spreadsheetId=Output_ID,
     #                                            body={'ranges': "Sheet1!A1:F8"}).execute()
 
     #output to file
     for i in range(1, 9):
-
         service.spreadsheets().values().update(spreadsheetId=Output_ID, range="Session{}!A1".format(i),
                                                valueInputOption="USER_ENTERED",
                                                body={"values": master_list[i]}).execute()
     print("done")
 
+    #end of program
+
 
 if __name__ == '__main__':
     main()
 
-#     1.print all in one sheet
-#     sort people by session
-#     organize all performers into different sessions based on their session number
-#
-#     ***add performers' emails with performer information
-#
-#     2. put all sessions in 8 different tabs
-#
-#     3. in each session, sort based on age
-#         if same age: sort base on time of registration
-#
-#     4. (in the future) automatically create zoom meetings
-#
-#     5. try test data
-#
-#
+#(in the future) automatically create zoom meetings
