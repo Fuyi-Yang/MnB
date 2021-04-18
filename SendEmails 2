@@ -1,0 +1,16 @@
+import smtplib
+
+sender_email = "fuyi.yang@musicnbrain.org"
+rec_email = "fyyang.us@gmail.com"
+rec_email2 = "fyyang.research@gmail.com"
+title = "Here's the title"
+context = "Hey!!! This message is directly from pycharm!!!"
+message = "Subject: {}\n\n{}".format(title, context)
+
+server = smtplib.SMTP('smtp.gmail.com', 587)
+server.starttls()
+server.login(sender_email, "ihstjckwpfjncxub")
+print("Login success")
+server.sendmail(sender_email, [rec_email, rec_email2], message)
+server.quit()
+print("Email has been sent to", rec_email, rec_email2)
