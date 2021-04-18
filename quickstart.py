@@ -2,6 +2,7 @@ from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from datetime import datetime
 import time
+import string
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 SERVICE_ACCOUNT_FILE = 'mykeys.json'
@@ -18,53 +19,62 @@ Zoom_links_ID = '1MV-4ZjOjoa--HYHSvZrOraP4lvmWyxmjPaM4v0TeacM'
 
 
 def getinfo(lis):
+    # A, B, C, D, J, L, M, N
 
-    #0.performer email
-    info = [lis[1]]
+    # 0.Session Number
+    # 1.performer email
+    ind = lis[8].index('Session')
+    ind_res = int(lis[8][ind + 8])
+    info = ['Session ' + lis[8][ind + 8], lis[1]]
 
-    #1.name of performer
-    first_name, last_name_letter = lis[2], lis[3][0]
-    info.append(first_name + ' ' + last_name_letter + '.')
+    # 2.performer full name
+    info.append(lis[2] + ' ' + lis[3])
 
-    #2.performance type
+    # 3.performer age
+    if lis[6] == '18+':
+        info.append(20)
+    else:
+        info.append(int(lis[6]))
+
+    # 4.interview decision
+    info.append(lis[20])
+
+    # 5.performance type
     performance_type = lis[9]
     if performance_type.lower() == 'instrument':
         performance_type = lis[10]
     if lis[10].lower() == 'other': performance_type = 'Instrument/Other'
     info.append(performance_type)
 
-    #3.performance piece
+    # 6.performance piece
     title = lis[11]
-    #Opus info
+    # Opus info
     if 'op' not in title.lower():
         if lis[13] != '':
-            if 'op' not in lis[13].lower(): title += ' Op.' + lis[13]
-            else: title += ' ' + lis[13]
-    #Movement info
-    if 'no.' in title.lower() or 'mov' in title.lower() or 'mvt' in title.lower():
-        title += ''
-    else:
+            if 'op' not in lis[13].lower():
+                title += ' Op.' + lis[13]
+            else:
+                title += ' ' + lis[13]
+    # Movement info
+    if 'mov' not in title.lower() and 'mvt' not in title.lower() and 'mvmt' not in title.lower():
         if lis[14] != '':
-            if 'no' in lis[14].lower() or 'mov' in lis[14].lower() \
-                    or 'mvt' in lis[14].lower(): title += ' ' + lis[14]
-            else: title += ' Mvt.' + lis[14]
-    #Key info
-    if lis[12] != '': title += ' in ' + lis[12]
+            if 'mov' in lis[14].lower() or 'mvt' in lis[14].lower() or \
+                    'mvmt' in lis[14].lower():
+                title += ' ' + lis[14]
+            else:
+                title += ' Mvt.' + lis[14]
+
+    # Key info
+    if 'major' not in title.lower() and 'minor' not in title.lower():
+        if lis[12] != '': title += ' in ' + lis[12]
     info.append(title)
 
-    #4.Composer Name
+    # 7.Composer Name
     info.append(lis[15])
 
-    #session number
-    ind = lis[8].index('Session')
-    ind_res = int(lis[8][ind+8])
-
     #############################################
-    #not printed information: for comparison ONLY
-    #5.performer age
-    info.append(int(lis[6]))
-
-    #6.submission date/time
+    # not printed information: for comparison ONLY
+    # 8.submission date/time
     info.append(lis[0])
     #############################################
 
@@ -73,8 +83,68 @@ def getinfo(lis):
     return info, ind_res
 
 
+def getinfo_final(lis):
+    # 0.performer email
+    info = [lis[1]]
+
+    # 1.name of performer
+    first_name, last_name_letter = lis[2], lis[3][0]
+    info.append(first_name + ' ' + last_name_letter + '.')
+
+    # 2.performance type
+    performance_type = lis[9]
+    if performance_type.lower() == 'instrument':
+        performance_type = lis[10]
+    if lis[10].lower() == 'other': performance_type = 'Instrument/Other'
+    info.append(performance_type)
+
+    # 3.performance piece
+    title = lis[11]
+    # Opus info
+    if 'op' not in title.lower():
+        if lis[13] != '':
+            if 'op' not in lis[13].lower():
+                title += ' Op.' + lis[13]
+            else:
+                title += ' ' + lis[13]
+    # Movement info
+    if 'no.' in title.lower() or 'mov' in title.lower() or 'mvt' in title.lower():
+        title += ''
+    else:
+        if lis[14] != '':
+            if 'no' in lis[14].lower() or 'mov' in lis[14].lower() \
+                    or 'mvt' in lis[14].lower():
+                title += ' ' + lis[14]
+            else:
+                title += ' Mvt.' + lis[14]
+    # Key info
+    if lis[12] != '': title += ' in ' + lis[12]
+    info.append(title)
+
+    # 4.Composer Name
+    info.append(lis[15])
+
+    # session number
+    ind = lis[8].index('Session')
+    ind_res = int(lis[8][ind + 8])
+
+    #############################################
+    # not printed information: for comparison ONLY
+    # 5.performer age
+    if lis[6] == '18+': info.append(20)
+    info.append(int(lis[6]))
+
+    # 6.submission date/time
+    info.append(lis[0])
+    #############################################
+
+    # print(info)
+
+    return info, ind_res
+
+
 def zoom_info(lis):
-    #session number
+    # session number
     lis[1], lis[0] = lis[0], lis[1]
     lis[0] = 'Session ' + lis[0]
 
@@ -85,7 +155,7 @@ def zoom_info(lis):
     # remove zoom meeting title
     lis.pop(-2)
 
-    #add extra words
+    # add extra words
     lis[2] = 'Meeting ID: ' + lis[2]
     lis[3] = 'Password: ' + lis[3]
 
@@ -93,88 +163,130 @@ def zoom_info(lis):
 
 
 def sort(lis):
-    #used bubble sort for simplicity
-    for i in range(len(lis)-1):
-        for j in range(i+1, len(lis)):
-            #compare age
-            if lis[i][5] > lis[j][5]:
+    # used bubble sort for simplicity
+    for i in range(len(lis) - 1):
+        for j in range(i + 1, len(lis)):
+            # compare age
+            if lis[i][3] > lis[j][3]:
                 lis[i], lis[j] = lis[j], lis[i]
-            #if same age: compare submission time
-            elif lis[i][5] == lis[j][5]:
-                date_time1, date_time2 = lis[i][6], lis[j][6]
+            # if same age: compare submission time
+            elif lis[i][3] == lis[j][3]:
+                date_time1, date_time2 = lis[i][-1], lis[j][-1]
                 timestamp1 = time.mktime(datetime.strptime(date_time1, "%Y-%m-%d %H:%M:%S").timetuple())
                 timestamp2 = time.mktime(datetime.strptime(date_time2, "%Y-%m-%d %H:%M:%S").timetuple())
                 if timestamp1 > timestamp2: lis[i], lis[j] = lis[j], lis[i]
 
 
-def main():
+def output_info(service, master_list, same_tab):
+    if same_tab:
+        # METHOD 1
+        # print all in same tab
+        for i in range(1, 8):
+            master_list[i].extend([[], []])
+        curr_row = 1
+        for i in range(1, 9):
+            service.spreadsheets().values().update(spreadsheetId=Output_ID, range="All Sessions!A{}".format(curr_row),
+                                                   valueInputOption="USER_ENTERED",
+                                                   body={"values": master_list[i]}).execute()
+            curr_row += len(master_list[i])
+    else:
+        # METHOD 2
+        # print each session in different tab
+        for i in range(1, 9):
+            service.spreadsheets().values().update(spreadsheetId=Output_ID, range="Session{}!A1".format(i),
+                                                   valueInputOption="USER_ENTERED",
+                                                   body={"values": master_list[i]}).execute()
 
+
+def main():
     # Call the Sheets API and get input
     service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
 
-    #get input from web-flow sheet
+    row = input("Enter current row: ")
+    # get input from web-flow sheet
     raw_input1 = sheet.values().get(spreadsheetId=Webflow_ID,
-                                    range="Sheet1!A3:W12").execute()
+                                    range=f"Sheet1!A2:W{row}").execute()
     performer_info = raw_input1.get('values', [])
 
-    #get input from zoom link sheet
+    # get input from zoom link sheet
     raw_input2 = sheet.values().get(spreadsheetId=Zoom_links_ID,
                                     range="May 2021!A2:G9").execute()
     zoom_links = raw_input2.get('values', [])
 
-    """0.Submission Time	1.Email Address   2.Performer's First Name  3.Performer's Last Name	
+    # just personal notes ... nothing going on here ...
+    """
+    INPUT DATA
+    0.Submission Time	1.Email Address   2.Performer's First Name  3.Performer's Last Name	
     4.Parent's First Name   5.Parent's Last Name	6.Performer's Age	7.Describe your experience	
     8.When would you like to perform?	9.What will your performance consist of?	10.What instrument?	
     11.Title of piece	12.Key	13.Opus	14.Movement	15.Composer Full Name   16.Length of Performance
     17.Number of Performers	    18.Day 1 changing piece acknowledgement	    19.Performance Method
-    20.Answer host questions?	21.How did you hear about us?   23.Receive email updates?
-    
-    required info: 1, 2, 3, 9, 10, 11, 15
-    preferred info: 8, 12, 13, 14, 19, 20
+    20.Answer host questions?	21.How did you hear about us?   22.Receive email updates?
+
+
+    PROCESSED DATA
+    0.Session Number   1.performer email   2.performer full name   3.performer age
+    4.interview decision   5.performance type   6.performance piece     7.composer name
+    8. submission date/time
     """
 
-    #initialize
-    title = ['Email', 'Performer First Name', 'Performance Type', 'Performance Piece Name', 'Composer']
-    master_list = {i+1: [] for i in range(8)}
+    # initialize
+    title = ['Session #', 'Performer Email', 'Performer Full Name', 'Age', 'Interview Decision',
+             'Performance Type', 'Performance Piece Name', 'Composer', 'Youtube Link']
+    master_list = {i + 1: [] for i in range(8)}
+    print_zoom_links = False
+    same_tab = False
+    hosts = []
 
-    #organize zoom links
-    for i in range(len(zoom_links)):
-        zoom_info(zoom_links[i])
+    # organize zoom links
+    for i in range(len(zoom_links)): zoom_info(zoom_links[i])
 
-
-    #gather information for each performer & append to master list -> dictionary
+    # gather information for each performer & append to master list -> dictionary
     for i in range(len(performer_info)):
         performer, ind = getinfo(performer_info[i])
         master_list[ind].append(performer)
 
-    #sort performers within each session
-    for i in range(1, 9):
-        sort(master_list[i])
+    # sort performers within each session
+    for i in range(1, 9): sort(master_list[i])
 
-    #delete extra info, add zoom links and titles
+    # remove duplicates
+    for i in range(0, 8):
+        ind = 0
+        temp = master_list[i+1]
+        while ind < len(temp) - 1:
+            remove = string.punctuation + string.whitespace
+            if temp[ind][2].translate(remove) == temp[ind+1][2].translate(remove):
+                temp.pop(ind)
+            else:
+                ind += 1
+
+    # delete extra info, add zoom links and titles
     for i in range(1, 9):
         for j in range(len(master_list[i])):
             temp = master_list[i][j]
-            del temp[5:]
-        master_list[i].insert(0, zoom_links[i-1])
-        master_list[i].insert(1, title)
+            del temp[-1]
+            if temp[3] == 20: temp[3] = '18+'
+        master_list[i].insert(0, title)
+        if print_zoom_links:
+            master_list[i].insert(0, zoom_links[i - 1])
 
-    #delete extra info(not needed currently)
-    # service.spreadsheets().values().batchClear(spreadsheetId=Output_ID,
-    #                                            body={'ranges': "Sheet1!A1:F8"}).execute()
+    # output to file
+    output_info(service, master_list, same_tab)
 
-    #output to file
-    for i in range(1, 9):
-        service.spreadsheets().values().update(spreadsheetId=Output_ID, range="Session{}!A1".format(i),
-                                               valueInputOption="USER_ENTERED",
-                                               body={"values": master_list[i]}).execute()
     print("done")
+    print("performer information outputted to google sheets")
 
-    #end of program
+    # end of program
 
 
 if __name__ == '__main__':
     main()
 
-#(in the future) automatically create zoom meetings
+# (in the future) automatically create zoom meetings
+# delete extra info(not needed currently)
+# service.spreadsheets().values().batchClear(spreadsheetId=Output_ID,
+#                                            body={'ranges': "Sheet1!A1:F8"}).execute()
+
+# add MC/Host name and email to each session ls
+# gmail directly from google sheets
