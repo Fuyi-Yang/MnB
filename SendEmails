@@ -3,19 +3,19 @@ from email.message import EmailMessage
 
 
 def sendmail(name, receiver):
-    email = "fuyi.yang@musicnbrain.org"
+    email = #put sender email
     msg = EmailMessage()
-    msg['Subject'] = "Email from Pycharm"
+    msg['Subject'] = #put email title
     msg['From'] = email
-    msg['To'] = receiver
+    msg['To'] = [#put receiver emails]
 
-    msg.set_content("Dear {},\n\nI think this is absolutely amazing...\n\nBest Regards,\nFuyi Yang".format(name))
+    msg.set_content(#put content here)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(email, "ihstjckwpfjncxub")
+        smtp.login(email, "put app password here")
         print("Login Success")
         smtp.send_message(msg)
         print("Mail sent to", receiver)
 
 
-sendmail("Silly Magic", "sillymagic93@gmail.com")
+sendmail("put names", "put emails")
