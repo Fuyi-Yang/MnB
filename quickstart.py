@@ -30,23 +30,26 @@ def getinfo(lis):
     # 2.performer full name
     info.append(lis[2] + ' ' + lis[3])
 
-    # 3.performer age
+    # 3.performer first name only
+    info.append(lis[2])
+
+    # 4.performer age
     if lis[6] == '18+':
         info.append(20)
     else:
         info.append(int(lis[6]))
 
-    # 4.interview decision
+    # 5.interview decision
     info.append(lis[20])
 
-    # 5.performance type
+    # 6.performance type
     performance_type = lis[9]
     if performance_type.lower() == 'instrument':
         performance_type = lis[10]
     if lis[10].lower() == 'other': performance_type = 'Instrument/Other'
     info.append(performance_type)
 
-    # 6.performance piece
+    # 7.performance piece
     title = lis[11]
     # Opus info
     if 'op' not in title.lower():
@@ -69,12 +72,12 @@ def getinfo(lis):
         if lis[12] != '': title += ' in ' + lis[12]
     info.append(title)
 
-    # 7.Composer Name
+    # 8.Composer Name
     info.append(lis[15])
 
     #############################################
     # not printed information: for comparison ONLY
-    # 8.submission date/time
+    # 9.submission date/time
     info.append(lis[0])
     #############################################
 
@@ -83,6 +86,7 @@ def getinfo(lis):
     return info, ind_res
 
 
+#   not needed currently, for final program
 def getinfo_final(lis):
     # 0.performer email
     info = [lis[1]]
@@ -146,7 +150,7 @@ def getinfo_final(lis):
 def zoom_info(lis):
     # session number
     lis[1], lis[0] = lis[0], lis[1]
-    lis[0] = 'Session ' + lis[0]
+    lis[0] = ''
 
     # date, time
     date = lis.pop(1)
@@ -162,26 +166,41 @@ def zoom_info(lis):
     return lis
 
 
+def order(lis):
+    for i in range(len(lis) - 1):
+        for j in range(i+1, len(lis)):
+            name1, name2 = lis[i][2] + lis[i][3], lis[j][2] + lis[j][3]
+            remove = string.punctuation + string.whitespace
+            if name1.translate(remove) > name2.translate(remove):
+                lis[i], lis[j] = lis[j], lis[i]
+    # print(lis)
+
+
 def sort(lis):
     # used bubble sort for simplicity
     for i in range(len(lis) - 1):
         for j in range(i + 1, len(lis)):
             # compare age
-            if lis[i][3] > lis[j][3]:
+            if lis[i][4] > lis[j][4]:
                 lis[i], lis[j] = lis[j], lis[i]
             # if same age: compare submission time
-            elif lis[i][3] == lis[j][3]:
+            elif lis[i][4] == lis[j][4]:
                 date_time1, date_time2 = lis[i][-1], lis[j][-1]
-                timestamp1 = time.mktime(datetime.strptime(date_time1, "%Y-%m-%d %H:%M:%S").timetuple())
-                timestamp2 = time.mktime(datetime.strptime(date_time2, "%Y-%m-%d %H:%M:%S").timetuple())
-                if timestamp1 > timestamp2: lis[i], lis[j] = lis[j], lis[i]
+                time1, time2 = timestamp(date_time1, date_time2)
+                if time1 > time2: lis[i], lis[j] = lis[j], lis[i]
+
+
+def timestamp(date1, date2):
+    str1 = time.mktime(datetime.strptime(date1, "%Y-%m-%d %H:%M:%S").timetuple())
+    str2 = time.mktime(datetime.strptime(date2, "%Y-%m-%d %H:%M:%S").timetuple())
+    return str1, str2
 
 
 def output_info(service, master_list, same_tab):
     if same_tab:
         # METHOD 1
         # print all in same tab
-        for i in range(1, 8):
+        for i in range(1, 9):
             master_list[i].extend([[], []])
         curr_row = 1
         for i in range(1, 9):
@@ -189,6 +208,8 @@ def output_info(service, master_list, same_tab):
                                                    valueInputOption="USER_ENTERED",
                                                    body={"values": master_list[i]}).execute()
             curr_row += len(master_list[i])
+
+        return curr_row
     else:
         # METHOD 2
         # print each session in different tab
@@ -196,23 +217,50 @@ def output_info(service, master_list, same_tab):
             service.spreadsheets().values().update(spreadsheetId=Output_ID, range="Session{}!A1".format(i),
                                                    valueInputOption="USER_ENTERED",
                                                    body={"values": master_list[i]}).execute()
+            info = str(15 - len(master_list[i]) + 1) + " spots left"
+            service.spreadsheets().values().update(spreadsheetId=Output_ID,
+                                                   range="Session{}!A{}".format(i, len(master_list[i]) + 2),
+                                                   valueInputOption="USER_ENTERED",
+                                                   body={"values": [[info]]}).execute()
+        return -1
+
+
+def output_info2(service, master_list, row, flag):
+    total = 0
+    res = []
+    for i in range(1, 9):
+        temp = master_list[i]
+        num = 15 - len(temp) + 3
+        if flag:
+            num += 1
+            total -= 1
+        res.append([f"Session {i}:", str(num) + " spots left"])
+        total += len(temp) - 3
+
+    res.extend([[], ["Total:", str(total) + ' registrations']])
+
+    service.spreadsheets().values().update(spreadsheetId=Output_ID, range="All Sessions!A{}".format(row),
+                                           valueInputOption="USER_ENTERED",
+                                           body={"values": res}).execute()
 
 
 def main():
-    # Call the Sheets API and get input
+    # Call the Sheets API
     service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
 
+    # get input for current row in web-flow sheet
     row = input("Enter current row: ")
+
     # get input from web-flow sheet
-    raw_input1 = sheet.values().get(spreadsheetId=Webflow_ID,
-                                    range=f"Sheet1!A2:W{row}").execute()
-    performer_info = raw_input1.get('values', [])
+    input1 = sheet.values().get(spreadsheetId=Webflow_ID,
+                                range=f"Sheet1!A2:W{row}").execute()
+    performer_info = input1.get('values', [])
 
     # get input from zoom link sheet
-    raw_input2 = sheet.values().get(spreadsheetId=Zoom_links_ID,
-                                    range="May 2021!A2:G9").execute()
-    zoom_links = raw_input2.get('values', [])
+    input2 = sheet.values().get(spreadsheetId=Zoom_links_ID,
+                                range="May 2021!A2:G9").execute()
+    zoom_links = input2.get('values', [])
 
     # just personal notes ... nothing going on here ...
     """
@@ -226,21 +274,42 @@ def main():
 
 
     PROCESSED DATA
-    0.Session Number   1.performer email   2.performer full name   3.performer age
-    4.interview decision   5.performance type   6.performance piece     7.composer name
-    8. submission date/time
+    0.Session Number   1.performer email   2.performer full name   3.performer first name 
+    4.performer age    5.interview decision   6.performance type   7.performance piece
+    8.composer name    9.submission date/time
     """
 
     # initialize
-    title = ['Session #', 'Performer Email', 'Performer Full Name', 'Age', 'Interview Decision',
-             'Performance Type', 'Performance Piece Name', 'Composer', 'Youtube Link']
+    title = ['Session #', 'Performer Email', 'Order', 'Performer Full Name', 'Performer First Name', 'Age',
+             'Interview Decision', 'Performance Type', 'Performance Piece Name', 'Composer', 'Youtube Link']
     master_list = {i + 1: [] for i in range(8)}
-    print_zoom_links = False
-    same_tab = False
+    print_zoom_links = True
+    same_tab = True
     hosts = []
 
     # organize zoom links
-    for i in range(len(zoom_links)): zoom_info(zoom_links[i])
+    for i in range(len(zoom_links)):
+        zoom_info(zoom_links[i])
+
+    # sort original list
+    order(performer_info)
+
+    # remove duplicates
+    ind = 0
+    while ind < len(performer_info) - 1:
+        remove = string.punctuation + string.whitespace
+
+        name1, name2 = performer_info[ind][2] + performer_info[ind][3], performer_info[ind+1][2] \
+                       + performer_info[ind+1][3]
+        if name1.translate(remove) == name2.translate(remove) \
+                and performer_info[ind][1] == performer_info[ind+1][1] and \
+                performer_info[ind][9] == performer_info[ind+1][9]:
+            time1, time2 = timestamp(performer_info[ind][0], performer_info[ind+1][0])
+            if time1 < time2:
+                performer_info.pop(ind)
+            else: performer_info.pop(ind+1)
+        else:
+            ind += 1
 
     # gather information for each performer & append to master list -> dictionary
     for i in range(len(performer_info)):
@@ -250,29 +319,21 @@ def main():
     # sort performers within each session
     for i in range(1, 9): sort(master_list[i])
 
-    # remove duplicates
-    for i in range(0, 8):
-        ind = 0
-        temp = master_list[i+1]
-        while ind < len(temp) - 1:
-            remove = string.punctuation + string.whitespace
-            if temp[ind][2].translate(remove) == temp[ind+1][2].translate(remove):
-                temp.pop(ind)
-            else:
-                ind += 1
-
     # delete extra info, add zoom links and titles
     for i in range(1, 9):
         for j in range(len(master_list[i])):
             temp = master_list[i][j]
-            del temp[-1]
-            if temp[3] == 20: temp[3] = '18+'
+            temp.pop()
+            if temp[4] == 20: temp[4] = '18+'
+            temp.insert(2, str(j+1))
         master_list[i].insert(0, title)
         if print_zoom_links:
             master_list[i].insert(0, zoom_links[i - 1])
 
     # output to file
-    output_info(service, master_list, same_tab)
+    row = output_info(service, master_list, same_tab)
+    if row >= 0:
+        output_info2(service, master_list, row, print_zoom_links)
 
     print("done")
     print("performer information outputted to google sheets")
@@ -289,4 +350,4 @@ if __name__ == '__main__':
 #                                            body={'ranges': "Sheet1!A1:F8"}).execute()
 
 # add MC/Host name and email to each session ls
-# gmail directly from google sheets
+
