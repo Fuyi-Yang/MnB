@@ -10,7 +10,6 @@ SERVICE_ACCOUNT_FILE = 'mykeys.json'
 creds = service_account.Credentials.from_service_account_file(
     SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 
-# performer_count = [1 for i in range(8)]
 
 Input_ID = '1l3t6XPk-mC7-z2HejG3eD2f_BpX6luCdb_TkHxYWKfM'
 Output_ID = '1k0YuJUFq52xtb19ZBrnn411rBQEG0XKrXSeUXw62uE4'
@@ -36,6 +35,8 @@ def getinfo(lis):
     # 4.performer age
     if lis[6] == '18+':
         info.append(20)
+    elif len(lis[6]) > 3:
+        info.append(30)
     else:
         info.append(int(lis[6]))
 
@@ -52,24 +53,25 @@ def getinfo(lis):
     # 7.performance piece
     title = lis[11]
     # Opus info
-    if 'op' not in title.lower():
-        if lis[13] != '':
-            if 'op' not in lis[13].lower():
-                title += ' Op.' + lis[13]
-            else:
-                title += ' ' + lis[13]
+    arr = ['op', 'bwv', 'k', 'nr']
+    if not any(map(title.lower().__contains__, arr)) and lis[13] != '':
+        if any(map(lis[13].lower().__contains__, arr)):
+            title += ' ' + lis[13]
+        else:
+            title += ' Op.' + lis[13]
+
     # Movement info
-    if 'mov' not in title.lower() and 'mvt' not in title.lower() and 'mvmt' not in title.lower():
-        if lis[14] != '':
-            if 'mov' in lis[14].lower() or 'mvt' in lis[14].lower() or \
-                    'mvmt' in lis[14].lower():
-                title += ' ' + lis[14]
-            else:
-                title += ' Mvt.' + lis[14]
+    arr = ['mov', 'mvt', 'mvmt', 'no.']
+    if not any(map(title.lower().__contains__, arr)) and lis[14] != '':
+        if any(map(lis[14].lower().__contains__, arr)):
+            title += ' ' + lis[14]
+        else:
+            title += ' Mvt.' + lis[14]
 
     # Key info
-    if 'major' not in title.lower() and 'minor' not in title.lower():
-        if lis[12] != '': title += ' in ' + lis[12]
+    if not any(map(title.lower().__contains__, ['major', 'minor'])) and lis[12] != '':
+        title += ' in ' + lis[12]
+
     info.append(title)
 
     # 8.Composer Name
@@ -88,63 +90,7 @@ def getinfo(lis):
 
 #   not needed currently, for final program
 def getinfo_final(lis):
-    # 0.performer email
-    info = [lis[1]]
-
-    # 1.name of performer
-    first_name, last_name_letter = lis[2], lis[3][0]
-    info.append(first_name + ' ' + last_name_letter + '.')
-
-    # 2.performance type
-    performance_type = lis[9]
-    if performance_type.lower() == 'instrument':
-        performance_type = lis[10]
-    if lis[10].lower() == 'other': performance_type = 'Instrument/Other'
-    info.append(performance_type)
-
-    # 3.performance piece
-    title = lis[11]
-    # Opus info
-    if 'op' not in title.lower():
-        if lis[13] != '':
-            if 'op' not in lis[13].lower():
-                title += ' Op.' + lis[13]
-            else:
-                title += ' ' + lis[13]
-    # Movement info
-    if 'no.' in title.lower() or 'mov' in title.lower() or 'mvt' in title.lower():
-        title += ''
-    else:
-        if lis[14] != '':
-            if 'no' in lis[14].lower() or 'mov' in lis[14].lower() \
-                    or 'mvt' in lis[14].lower():
-                title += ' ' + lis[14]
-            else:
-                title += ' Mvt.' + lis[14]
-    # Key info
-    if lis[12] != '': title += ' in ' + lis[12]
-    info.append(title)
-
-    # 4.Composer Name
-    info.append(lis[15])
-
-    # session number
-    ind = lis[8].index('Session')
-    ind_res = int(lis[8][ind + 8])
-
-    #############################################
-    # not printed information: for comparison ONLY
-    # 5.performer age
-    if lis[6] == '18+': info.append(20)
-    info.append(int(lis[6]))
-
-    # 6.submission date/time
-    info.append(lis[0])
-    #############################################
-
-    # print(info)
-
-    return info, ind_res
+    pass
 
 
 def zoom_info(lis):
@@ -196,7 +142,7 @@ def timestamp(date1, date2):
     return str1, str2
 
 
-def output_info(service, master_list, same_tab):
+def output_info(service, master_list, same_tab, flag):
     if same_tab:
         # METHOD 1
         # print all in same tab
@@ -217,7 +163,9 @@ def output_info(service, master_list, same_tab):
             service.spreadsheets().values().update(spreadsheetId=Output_ID, range="Session{}!A1".format(i),
                                                    valueInputOption="USER_ENTERED",
                                                    body={"values": master_list[i]}).execute()
-            info = str(15 - len(master_list[i]) + 1) + " spots left"
+            num = 15 - len(master_list[i]) + 1
+            if flag: num += 1
+            info = str(num) + " spots left"
             service.spreadsheets().values().update(spreadsheetId=Output_ID,
                                                    range="Session{}!A{}".format(i, len(master_list[i]) + 2),
                                                    valueInputOption="USER_ENTERED",
@@ -325,13 +273,14 @@ def main():
             temp = master_list[i][j]
             temp.pop()
             if temp[4] == 20: temp[4] = '18+'
+            elif temp[4] == 30: temp[4] = "Prefer not to share"
             temp.insert(2, str(j+1))
         master_list[i].insert(0, title)
         if print_zoom_links:
             master_list[i].insert(0, zoom_links[i - 1])
 
     # output to file
-    row = output_info(service, master_list, same_tab)
+    row = output_info(service, master_list, same_tab, print_zoom_links)
     if row >= 0:
         output_info2(service, master_list, row, print_zoom_links)
 
