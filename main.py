@@ -191,7 +191,7 @@ def output_info2(service, master_list, row, flag):
                                            valueInputOption="USER_ENTERED",
                                            body={"values": res}).execute()
 
-
+ 
 def main():
     # Call the Sheets API
     service = build('sheets', 'v4', credentials=creds)
